@@ -32,7 +32,7 @@ int MY_ADDREES=0x01;        //мой адресс
 
 bool timer_start_ms(int ms){
 ///считаем вниз
-return 1;                                   ///для тестирования по дефолту
+return true;                                   ///для тестирования по дефолту
 ///устанавливаем счетчик таймер
 ///Перегрузку устанавливаем = 0
 ///стартуем счетчик таймер
@@ -48,20 +48,23 @@ bool timer_stop(){
 
 bool timer_is_over(){
     //иначе 
-    return 0;                           ///для тестирования
+    return false;                           ///для тестирования
 }
 
 
 
 bool bytes_available(){   //проверим доступность нового байта
 //Читаем бит прерывания приемника например
-return 1;                               ///для тестирования
+return true;                               ///для тестирования
 };
 
 
 int get_byte(){   //возвращает новый свежепринятый байт
 //достаем из приемника пришедший байт
 int a;
+
+
+
 printf("Input bite\n");
 scanf("%i", &a);
 //printf("%x\n", a);  
@@ -69,7 +72,13 @@ return a;
 };
 
 
-enum part // арифметическая операция
+
+
+
+
+bool get_packet(int reсive_byte, int packet_buffer[]){ // смотрим на пришедший байт, принимаем решения
+
+static enum part // арифметическая операция
 {
     PREABULA1,        
     PREABULA2,   
@@ -80,14 +89,8 @@ enum part // арифметическая операция
     ADRESS_RX,
     DATA,
     CRC   
-};
-
-
-
-bool get_packet(int reсive_byte, int packet_buffer[]){ // смотрим на пришедший байт, принимаем решения
-
+} wait_packet_part;
 static bool reset_flag;
-static enum part wait_packet_part;
 static int buf_cnt;
 static int message_size;
 static int message_cnt;
@@ -161,11 +164,12 @@ case DATA:
         crc_xor=crc_xor^reсive_byte;
         buf_cnt++;
         message_cnt++;
+        printf("DATA BYTE RECIVED\n");
         if(message_size==message_cnt){
                 printf("DATA RECIVED\n");
                 printf("NEXT BYTE MUST BE");
                 printf(" %x",crc_xor);
-                printf(" TO SUCCSUSFULL CHECH CRC\n");
+                printf(" TO SUCCSUSFULL CHECK CRC\n");
                 wait_packet_part=CRC;     
             }
     break;   
@@ -174,7 +178,7 @@ case CRC:
         packet_buffer[buf_cnt]=reсive_byte;    
         printf("PACKET IS OK\n");
         reset_flag=1;
-        return 1;
+        return true;
         } else {printf("PACKET IS BAD\n");
                 reset_flag=1;
         }  
@@ -191,7 +195,7 @@ buf_cnt=0;
 message_size=0;
 message_cnt=0;
 crc_xor=0;
-return 0;
+return false;
 };
 
 }
