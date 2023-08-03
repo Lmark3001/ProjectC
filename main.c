@@ -1,3 +1,5 @@
+//тестируем
+
 #include <stdio.h>
 #include <stdbool.h>  
 #include <stdint.h>  
@@ -26,10 +28,11 @@
     проверить логику работы таймера
 
 */
-uint8_t MY_ADDREES=0x01;        //мой адресс
+int MY_ADDREES=0x01;        //мой адресс
 
 bool timer_start_ms(int ms){
 ///считаем вниз
+return 1;                                   ///для тестирования по дефолту
 ///устанавливаем счетчик таймер
 ///Перегрузку устанавливаем = 0
 ///стартуем счетчик таймер
@@ -44,150 +47,176 @@ bool timer_stop(){
 }
 
 bool timer_is_over(){
-//если значение таймера 0 то 
- timer_stop();
-    return 1;
     //иначе 
-    return 0;
+    return 0;                           ///для тестирования
 }
 
 
 
 bool bytes_available(){   //проверим доступность нового байта
 //Читаем бит прерывания приемника например
+return 1;                               ///для тестирования
 };
 
 
-bool get_byte(){   //возвращает новый свежепринятый байт
+int get_byte(){   //возвращает новый свежепринятый байт
 //достаем из приемника пришедший байт
+int a;
+printf("Input bite\n");
+scanf("%i", &a);
+//printf("%x\n", a);  
+return a; 
 };
 
 
-                                                                                                  
+enum part // арифметическая операция
+{
+    PREABULA1,        
+    PREABULA2,   
+    PREABULA3,    
+    PREABULA4,
+    MESSAGE_SIZE,
+    ADRESS_TX,
+    ADRESS_RX,
+    DATA,
+    CRC   
+};
+
 
 
 bool get_packet(int reсive_byte, int packet_buffer[]){ // смотрим на пришедший байт, принимаем решения
 
-    static int reset_flag;
-    static int buf_cnt;
-    static int preabula_is_recived;
-        static int preabula_byte;
-        static const int preabula_size = 3;  //0123 это же 4??
-    static int size_is_recived;    
-    static int adr_tx_is_recived;
-    static int adr_rx_is_recived;
-    static int message_is_recived;
-        static int message_size;
-        static int message_cnt;
-    static int crc_is_recived;
-
-    static int crc_xor=0;
+static bool reset_flag;
+static enum part wait_packet_part;
+static int buf_cnt;
+static int message_size;
+static int message_cnt;
+static int crc_xor;
 
 
-    if(reset_flag){ 
+switch (wait_packet_part)
+{
+case PREABULA1:
+    if(reсive_byte==0x1){
         buf_cnt=0;
-        preabula_is_recived=0;
-        preabula_byte=0;
-        size_is_recived=0;   
-        adr_tx_is_recived=0;
-        adr_rx_is_recived=0;
-        message_is_recived=0;
-        message_size=0;
-        message_cnt=0;
-        crc_is_recived=0;
-        reset_flag=0;
-
-        crc_xor=0;
-    };
-    //1. 4 байта преамбула 
-    if(preabula_is_recived){    //принимаем преамбулу если не принята то принимаем.
-        if(reсive_byte==0x1){
-            buf_cnt=0;     // инкрементируем счетчик буфера
-            packet_buffer[buf_cnt]=reсive_byte;
-            buf_cnt++;
-        }    
-        if((reсive_byte==0x2)&&(buf_cnt==1)){
-            packet_buffer[buf_cnt]=reсive_byte;
-            crc_xor=reсive_byte;
-            buf_cnt++;
-        }
-        if((reсive_byte==0x3)&&(buf_cnt==2)){
-            packet_buffer[buf_cnt]=reсive_byte;
-            crc_xor=crc_xor^reсive_byte;
-            buf_cnt++;
-        }    
-        if((reсive_byte==0x4)&&(buf_cnt==3)){
-            packet_buffer[buf_cnt]=reсive_byte;
-            crc_xor=crc_xor^reсive_byte;
-            preabula_is_recived=1;                     //поднимаем флаг принятой преабулы
-            timer_start_ms(1000);                 //запускаем таймер таймаута
-            buf_cnt++;
-        } 
-        else  buf_cnt=0;                           //если ношибка в приеме то начинаем сначала
-    }
-
-    //2. 1 байт N байт сообщения
-    if (timer_is_over) reset_flag=1;                 //если таймаут то сбрасываем флаги принятия пакета                              
-    if (preabula_is_recived){                       //если принята преамбула принимаем адрес'
+        packet_buffer[buf_cnt]=reсive_byte;
+        crc_xor=crc_xor^reсive_byte;
+        buf_cnt=1;
+        printf("PREABULA1 RECIVED\n");
+        wait_packet_part=PREABULA2;
+    } else reset_flag=1;
+    break;
+case PREABULA2:
+    if(reсive_byte==0x2){
+        packet_buffer[buf_cnt]=reсive_byte;
+        crc_xor=crc_xor^reсive_byte;
+        buf_cnt=2;
+        printf("PREABULA2 RECIVED\n");
+        wait_packet_part=PREABULA3;
+    } else reset_flag=1;
+    break;
+case PREABULA3:
+    if(reсive_byte==0x3){
+        packet_buffer[buf_cnt]=reсive_byte;
+        crc_xor=crc_xor^reсive_byte;
+        buf_cnt=3;
+        wait_packet_part=PREABULA4;
+        printf("PREABULA3 RECIVED\n");
+    }else reset_flag=1;
+    break;
+case PREABULA4:
+    if(reсive_byte==0x4){
+        packet_buffer[buf_cnt]=reсive_byte;
+        crc_xor=crc_xor^reсive_byte;
+        buf_cnt=4;
+        printf("PREABULA4 RECIVED\n");
+        wait_packet_part=MESSAGE_SIZE;
+    }else reset_flag=1;
+    break;
+case MESSAGE_SIZE:
         packet_buffer[buf_cnt]=reсive_byte;
         message_size=reсive_byte;
         crc_xor=crc_xor^reсive_byte;
-        buf_cnt++;
-        size_is_recived=1;    //взводим флаг принятого адреса   
-    };   
-
-//3. 1 байт адрес источника 
-    if (timer_is_over) reset_flag=1;                 //если таймаут то сбрасываем флаги принятия пакета                              
-    if (size_is_recived){                       //если принята преамбула принимаем адрес'
+        buf_cnt=5;
+        wait_packet_part=ADRESS_TX;
+        printf("MESSAGE_SIZE RECIVED\n");
+    break;
+case ADRESS_TX:
         packet_buffer[buf_cnt]=reсive_byte;
         crc_xor=crc_xor^reсive_byte;
-        buf_cnt++;
-        adr_tx_is_recived=1;    //взводим флаг принятого адреса   
-    };   
-
-//4. 1 байт адрес приемника
-    if (timer_is_over) reset_flag=1;                 //если таймаут то сбрасываем флаги принятия пакета                              
-    if (adr_tx_is_recived){                       //если принята адрес источника принимаем адрес приемник
-        packet_buffer[buf_cnt]=reсive_byte;
-        crc_xor=crc_xor^reсive_byte;
-        buf_cnt++;
-        adr_rx_is_recived=1;    //взводим флаг принятого адреса 
-        /////Можно сверить адрес получателя и свой////  
-    };   
-   
-//5.N байт сообщения по 1 байт -- максимум 255
-    if (timer_is_over) reset_flag=1;                 //если таймаут то сбрасываем флаги принятия пакета                              
-    if (adr_rx_is_recived){                       //если принята адрес премника принимаем массив
-        packet_buffer[buf_cnt]=reсive_byte;
-        crc_xor=crc_xor^reсive_byte;
-        message_cnt++;                              //получаем байт и инкрементируем принятый размер   
-        buf_cnt++;
-        if(message_cnt==message_size);
-            {message_is_recived=1;}      //если размер принятого равен размеру данных то взводим флаг принятых данных  
-    };   
-
-//6.//если принята  данных принимаем CRC
-//если таймаут то сбрасываем флаги принятия пакета
-
-    if (timer_is_over) reset_flag=1;                 //если таймаут то сбрасываем флаги принятия пакета                              
-    if (message_is_recived=1){                       //если принята адрес источника принимаем адрес приемник
-        packet_buffer[buf_cnt]=reсive_byte;
+        buf_cnt=6;
+        printf("ADRESS_TX RECIVED\n");
+        wait_packet_part=ADRESS_RX;
         
-        crc_is_recived=1;    //взводим флаг принятого адреса   
-    };   
-   
-    if (crc_is_recived=1){                       //если принята адрес источника принимаем адрес приемник
-        if(packet_buffer[buf_cnt]==crc_xor) return 1;   //взводим флаг принятого адреса   
-    };  
+    break;
+case ADRESS_RX:
+        packet_buffer[buf_cnt]=reсive_byte;
+        crc_xor=crc_xor^reсive_byte;
+        buf_cnt=7;
+        printf("ADRESS_RX RECIVED\n");
+        wait_packet_part=DATA; 
+    break;    
+case DATA:
+        packet_buffer[buf_cnt]=reсive_byte;
+        crc_xor=crc_xor^reсive_byte;
+        buf_cnt++;
+        message_cnt++;
+        if(message_size==message_cnt){
+                printf("DATA RECIVED\n");
+                printf("NEXT BYTE MUST BE");
+                printf(" %x",crc_xor);
+                printf(" TO SUCCSUSFULL CHECH CRC\n");
+                wait_packet_part=CRC;     
+            }
+    break;   
+case CRC:
+        if(reсive_byte==crc_xor){
+        packet_buffer[buf_cnt]=reсive_byte;    
+        printf("PACKET IS OK\n");
+        reset_flag=1;
+        return 1;
+        } else {printf("PACKET IS BAD\n");
+                reset_flag=1;
+        }  
+    break;   
+default:
+    break;
+}
+
+if(reset_flag){ 
+    printf("reseting variables\n");
+reset_flag=0;
+wait_packet_part=PREABULA1;
+buf_cnt=0;
+message_size=0;
+message_cnt=0;
+crc_xor=0;
+return 0;
+};
 
 }
 
-bool packet_reaction(uint8_t *packet_buffer){  //когда пакет принят его нужно бы засунуть в структуру
-       return true;  
+bool packet_reaction(int *packet_buffer){  //когда пакет принят его нужно бы засунуть в структуру
+    printf("PACKET IS REСIVED!!!\n");
+
+    printf("size: ");
+    printf("%x\n", packet_buffer[4]); 
+
+    printf("tx_address: ");
+    printf("%x\n", packet_buffer[5]); 
+
+    printf("rx_address: ");
+    printf("%x\n", packet_buffer[6]); 
+
+    printf("DATA: ");
+    for(int i=7; i<(7+packet_buffer[4]); i++){
+        printf("%x\n", packet_buffer[i]);
+        
+    };
+
+    printf("CRC: ");
+    printf("%x\n\n\n", (packet_buffer[7+packet_buffer[4]]));  
 };
-
-
-
 
 
 
@@ -195,8 +224,11 @@ int main()
 { 
  int packet_buffer[263]; //буфер 4+1+1+1+255+1
 
- if(bytes_available()){                                //если доступен новый байт
-    if(get_packet(get_byte(), &packet_buffer))         //достаем его из приемника и формируем пакет
-        packet_reaction(packet_buffer);               //потом формируем его структуру
- }
+while (1)
+{
+    if(bytes_available()){                                //если доступен новый байт
+        if(get_packet(get_byte(), packet_buffer))         //достаем его из приемника и формируем пакет
+           packet_reaction(packet_buffer);               //потом формируем его структуру
+    }
+}
 };
